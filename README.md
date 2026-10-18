@@ -37,21 +37,7 @@ Posle izmena koda klikni ↻ na kartici ekstenzije u `chrome://extensions`.
 | `extension/popup.*` | Prikaz (tabovi Nestali i Aktivni, meni za izvoz i uvoz) |
 | `test/` | End-to-end testovi (Playwright) na veštačkoj stranici sa izmišljenim oglasima |
 
-## Testovi
-
-Potreban je [Node.js](https://nodejs.org) LTS.
-
-```sh
-cd test
-npm install
-npx playwright install chromium
-npm test
-```
-
-Testovi pokreću Chromium sa učitanom ekstenzijom i serviraju `test/fixture-pratim.html` umesto pravog sajta.
 
 ## Napomene
 
-- Ekstenzija se oslanja na HTML strukturu KP sajta (CSS klase `AdFollow…`, `AdItem…`). Ako KP promeni dizajn, selektore treba ažurirati u `extension/content.js` (objekat `SEL`).
-- Font PT Sans je pod licencom SIL Open Font License (`extension/fonts/OFL.txt`).
 - Ovo je nezvaničan, lični alat i nije povezan sa KupujemProdajem.
