@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "KP praćeni – istorija",
+  "version": "1.0.0",
+  "description": "Pamti oglase koje pratiš na KupujemProdajem i pokazuje koji su nestali.",
+  "permissions": ["storage", "unlimitedStorage"],
+  "background": { "service_worker": "background.js" },
+  "action": { "default_popup": "popup.html", "default_title": "KP praćeni – istorija" },
+  "content_scripts": [
+    {
+      "matches": ["https://www.kupujemprodajem.com/*"],
+      "js": ["inject.js"],
+      "world": "MAIN",
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["https://www.kupujemprodajem.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

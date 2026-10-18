@@ -1,0 +1,170 @@
+/* PT Sans (SIL OFL, fonts/OFL.txt) – isti font kao na KP sajtu */
+@font-face { font-family: 'PT Sans'; font-weight: 400; font-display: swap; src: url(fonts/pt-sans-latin-400.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2212, U+FEFF, U+FFFD; }
+@font-face { font-family: 'PT Sans'; font-weight: 400; font-display: swap; src: url(fonts/pt-sans-latin-ext-400.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1E00-1E9F, U+20A0-20AB, U+20AD-20C0, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: 'PT Sans'; font-weight: 700; font-display: swap; src: url(fonts/pt-sans-latin-700.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2212, U+FEFF, U+FFFD; }
+@font-face { font-family: 'PT Sans'; font-weight: 700; font-display: swap; src: url(fonts/pt-sans-latin-ext-700.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1E00-1E9F, U+20A0-20AB, U+20AD-20C0, U+2C60-2C7F, U+A720-A7FF; }
+
+/* Boje preuzete iz KP dizajn sistema (--kp-color-*) */
+:root {
+  --bg: #f0f0f0;
+  --surface: #ffffff;
+  --header: #003368;
+  --header-fg: #ffffff;
+  --header-muted: #b3c2d2;
+  --title: #003368;
+  --text: #181818;
+  --muted: #666666;
+  --border: #e0e7ef;
+  --accent: #007ec3;
+  --accent-hover: #00679e;
+  --price: #cc0000;
+  --chip-red-bg: #ffedeb;
+  --chip-red-fg: #cb290f;
+  --chip-gray-bg: #f4f6f8;
+  --info-bg: #e3f3fc;
+  --info-fg: #00679e;
+  --warn-bg: #ffedeb;
+  --warn-fg: #cb290f;
+  --new-bar: #ff1e00;
+  --thumb: #e0e7ef;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d0f11;
+    --surface: #1b1f23;
+    --header: #191b24;
+    --header-fg: #ffffff;
+    --header-muted: #8099b4;
+    --title: #ffffff;
+    --text: #f0f0f0;
+    --muted: #b3b3b3;
+    --border: #31383f;
+    --accent: #259ada;
+    --accent-hover: #84caf0;
+    --price: #ff624d;
+    --chip-red-bg: #570a00;
+    --chip-red-fg: #ffa599;
+    --chip-gray-bg: #282e34;
+    --info-bg: #003f61;
+    --info-fg: #b9e1f8;
+    --warn-bg: #570a00;
+    --warn-fg: #ffa599;
+    --new-bar: #ff624d;
+    --thumb: #282e34;
+    color-scheme: dark;
+  }
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  width: 440px;
+  font: 14px/1.35 'PT Sans', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+body.full { width: auto; max-width: 760px; margin: 0 auto; min-height: 100vh; }
+button { font: inherit; cursor: pointer; }
+svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+/* Zaglavlje */
+.top {
+  position: relative;
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 14px;
+  background: var(--surface); color: var(--title);
+}
+.logo { width: 26px; height: 26px; fill: #ff1e00; stroke: none; flex: none; }
+.title { flex: 1; min-width: 0; }
+.title h1 { margin: 0; font-size: 18px; line-height: 1.1; font-weight: 700; color: var(--title); }
+.title span { font-size: 12px; color: var(--header-muted); }
+.icon-btn {
+  display: grid; place-items: center; width: 32px; height: 32px;
+  border: 0; border-radius: 6px; background: transparent; color: var(--muted);
+}
+.icon-btn:hover, .icon-btn[aria-expanded="true"] { background: var(--chip-gray-bg); color: var(--title); }
+.icon-btn svg { width: 20px; height: 20px; }
+
+/* Meni (⋮) */
+.menu {
+  position: absolute; top: 46px; right: 10px; z-index: 5; min-width: 200px;
+  padding: 4px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--surface); box-shadow: 0 6px 20px rgb(0 0 0 / 0.18);
+}
+.menu button {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 8px 10px; border: 0; border-radius: 6px;
+  background: transparent; color: var(--text); text-align: left;
+}
+.menu button:hover { background: var(--chip-gray-bg); }
+.menu svg { width: 16px; height: 16px; color: var(--muted); flex: none; }
+.menu hr { margin: 4px 0; border: 0; border-top: 1px solid var(--border); }
+body.full #open-full, body.full #open-full + hr { display: none; }
+
+/* Tabovi */
+.tabs { display: flex; background: var(--surface); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 1; }
+.tabs button {
+  flex: 1 1 0; min-width: 0; display: flex; justify-content: center; align-items: center; gap: 6px;
+  padding: 11px 8px 9px; border: 0; border-bottom: 3px solid transparent;
+  background: transparent; color: var(--muted); font-weight: 700;
+}
+.tabs button:hover { color: var(--text); }
+.tabs button.active { color: var(--accent); border-bottom-color: var(--accent); }
+.count {
+  min-width: 20px; padding: 1px 6px; border-radius: 10px;
+  background: var(--chip-gray-bg); color: var(--muted); font-size: 12px;
+}
+.tabs button.active .count { background: var(--accent); color: #fff; }
+
+/* Info traka */
+.notice { margin: 10px 10px 0; padding: 8px 10px; border-radius: 6px; font-size: 12.5px; background: var(--info-bg); color: var(--info-fg); }
+.notice.warn { background: var(--warn-bg); color: var(--warn-fg); }
+.notice:empty { display: none; }
+
+/* Lista oglasa */
+main { max-height: 430px; overflow-y: auto; padding: 10px; }
+body.full main { max-height: none; }
+ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.card {
+  position: relative; display: flex; gap: 12px; padding: 10px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+}
+.card.new { box-shadow: inset 4px 0 0 var(--new-bar); }
+.thumb {
+  width: 76px; height: 76px; flex: none; border-radius: 6px; overflow: hidden;
+  background: var(--thumb); display: grid; place-items: center; color: var(--muted);
+}
+.thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.thumb svg { width: 26px; height: 26px; opacity: 0.6; }
+.removed .thumb img { filter: grayscale(1); opacity: 0.75; }
+.body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.name {
+  color: var(--text); font-weight: 700; text-decoration: none;
+  display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  padding-right: 22px;
+}
+.name:hover { color: var(--accent); text-decoration: underline; }
+.removed .name { color: var(--muted); }
+.loc { color: var(--muted); font-size: 12.5px; display: flex; align-items: center; gap: 3px; }
+.loc svg { width: 12px; height: 12px; flex: none; }
+.row { margin-top: auto; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.price { color: var(--price); font-weight: 700; font-size: 15px; }
+.removed .price { text-decoration: line-through; color: var(--muted); }
+.chip { padding: 2px 8px; border-radius: 4px; font-size: 12px; white-space: nowrap; background: var(--chip-gray-bg); color: var(--muted); }
+.chip.red { background: var(--chip-red-bg); color: var(--chip-red-fg); font-weight: 700; }
+.del {
+  position: absolute; top: 6px; right: 6px; width: 24px; height: 24px;
+  display: grid; place-items: center; border: 0; border-radius: 4px;
+  background: transparent; color: var(--muted);
+}
+.del:hover { background: var(--chip-red-bg); color: var(--chip-red-fg); }
+.del svg { width: 14px; height: 14px; }
+
+#empty { padding: 36px 16px; text-align: center; color: var(--muted); }
+#empty svg { width: 40px; height: 40px; color: var(--border); }
+#empty p { margin: 8px 0 0; }
