@@ -1,4 +1,4 @@
-# KP praćeni – istorija
+# KupujemProdajem istorija praćenih oglasa
 
 Chrome ekstenzija za [KupujemProdajem](https://www.kupujemprodajem.com) koja pamti oglase koje pratiš i pokazuje **koji su nestali** (prodati, obrisani ili istekli). KP sam samo smanji broj praćenih oglasa, bez traga šta je otišlo.
 
