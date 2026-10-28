@@ -1,39 +1,64 @@
 // Čita listu na /moj-kp/pratim, upoređuje sa sačuvanom i beleži nestale oglase.
+//
+// KP menja (heširane) CSS klase, pa oglase NE tražimo po klasi kartice, nego po
+// linkovima /oglas/{id}: kartica je najveći predak linka koji sadrži samo taj oglas.
+// Klase ispod se koriste samo kao prvi izbor za naziv/cenu/lokaciju, uz rezervne načine.
 const FAV_PATH = '/moj-kp/pratim';
 const SEL = {
-  item: 'section[class*="AdFollow"][class*="itemHolder"]',
-  name: '[class*="AdItem"][class*="__name"]',
-  price: '.priceText, [class*="__inlinePrice"]',
-  location: '[class*="originAndPromoLocation"]',
+  adLink: 'a[href*="/oglas/"]',
+  name: '[class*="__name"]',
+  price: '[class*="priceText"], [class*="inlinePrice"], [class*="price" i]',
+  location: '[class*="ocation" i]',
   total: `a[href$="${FAV_PATH}"][aria-label]`,
 };
+const PRICE_RE = /\d[\d.,]*\s*(din|€|eur|rsd)\b|dogovor|kontakt|pozvati|besplatno|kupujem/i;
 const PARTIAL_TTL = 30 * 60 * 1000; // koliko dugo se skupljaju oglasi sa više strana liste
 
 const get = (keys) => chrome.storage.local.get(keys);
 const set = (obj) => chrome.storage.local.set(obj);
 const clean = (s) => (s || '').replace(/\s+/g, ' ').trim();
+const adId = (a) => /\/oglas\/(\d+)/.exec(a.href)?.[1];
 
-function parseItem(sec) {
-  const link = sec.querySelector('a[href*="/oglas/"]');
-  const m = link && /\/oglas\/(\d+)/.exec(link.href);
-  if (!m) return null;
+function adLinksById(root = document) {
+  const byId = new Map();
+  for (const a of root.querySelectorAll(SEL.adLink)) {
+    const id = adId(a);
+    if (!id) continue;
+    if (!byId.has(id)) byId.set(id, []);
+    byId.get(id).push(a);
+  }
+  return byId;
+}
+
+function cardFor(link, id) {
+  let card = link;
+  for (let p = card.parentElement; p && p !== document.body; p = p.parentElement) {
+    const other = [...p.querySelectorAll(SEL.adLink)].some((a) => adId(a) && adId(a) !== id);
+    if (other) break;
+    card = p;
+  }
+  return card;
+}
+
+function parseCard(card, id, links) {
+  const named = links.find((a) => a.getAttribute('aria-label'));
+  const priceEl = card.querySelector(SEL.price);
+  const price = clean(priceEl?.textContent) || clean(PRICE_RE.exec(card.textContent)?.[0]);
   return {
-    id: m[1],
-    name: clean(sec.querySelector(SEL.name)?.textContent) || link.getAttribute('aria-label') || `Oglas ${m[1]}`,
-    price: clean(sec.querySelector(SEL.price)?.textContent),
-    location: clean(sec.querySelector(SEL.location)?.textContent),
-    img: sec.querySelector('img')?.src || '',
-    url: link.href,
-    state: sec.dataset.state || '',
+    id,
+    name: clean(card.querySelector(SEL.name)?.textContent) || named?.getAttribute('aria-label') ||
+      clean(links.map((a) => a.textContent).find((t) => clean(t))) || `Oglas ${id}`,
+    price: price.length <= 40 ? price : '',
+    location: clean(card.querySelector(SEL.location)?.textContent),
+    img: card.querySelector('img')?.src || '',
+    url: links[0].href,
+    state: (card.closest('[data-state]') || card.querySelector('[data-state]'))?.dataset.state || '',
   };
 }
 
 function readItems() {
   const items = {};
-  for (const sec of document.querySelectorAll(SEL.item)) {
-    const it = parseItem(sec);
-    if (it) items[it.id] = it;
-  }
+  for (const [id, links] of adLinksById()) items[id] = parseCard(cardFor(links[0], id), id, links);
   return items;
 }
 
@@ -69,13 +94,21 @@ async function addWithoutDiff(items, total, seen) {
   await set({ ads, lastScan: { at: now, seen, total, complete: false } });
 }
 
+// Kad lista ne može da se pročita, to beležimo da bi popup upozorio (umesto da ćuti).
+// Uspešan pregled posle toga ima noviji datum, pa popup tada upozorenje ne prikazuje.
+function reportIssue(reason, count, total) {
+  return set({ lastIssue: { at: Date.now(), reason, count, total } });
+}
+
 async function scan() {
   const items = readItems();
   const total = readTotal();
   const count = Object.keys(items).length;
   // Broj u meniju i lista se ne osvežavaju istovremeno (npr. odmah posle lajka/skidanja lajka).
   // Takvo stanje preskačemo – ponovo se skenira kad se nešto od toga promeni.
-  if (total === null || count > total || (count === 0 && total > 0)) return;
+  if (total === null) return reportIssue('no-total', count, total);
+  if (count === 0 && total > 0) return reportIssue('no-items', count, total);
+  if (count > total) return reportIssue('too-many', count, total);
 
   if (count === total) {
     await set({ partial: null });
@@ -109,12 +142,31 @@ setInterval(() => {
     lastSig = null;
     return;
   }
-  const sig = `${location.href}|${document.querySelectorAll(SEL.item).length}|${readTotal()}`;
+  const sig = `${location.href}|${adLinksById().size}|${readTotal()}`;
   if (sig === lastSig) return;
   lastSig = sig;
   clearTimeout(scanTimer);
   scanTimer = setTimeout(scan, 1500);
 }, 500);
+
+// Dijagnostika (meni ⋮ u popup-u): šta ekstenzija vidi na ovoj stranici.
+chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
+  if (msg?.type !== 'diag') return;
+  const items = readItems();
+  const firstId = Object.keys(items)[0];
+  const firstCard = firstId && cardFor(adLinksById().get(firstId)[0], firstId);
+  reply({
+    url: location.href,
+    verzija: chrome.runtime.getManifest().version,
+    brojUMeniju: readTotal(),
+    linkoviPratim: [...document.querySelectorAll(`a[href*="${FAV_PATH}"]`)].map((a) => a.getAttribute('aria-label')),
+    pronadjenoOglasa: Object.keys(items).length,
+    oglasi: Object.values(items).map(({ id, name, price, state }) => ({ id, name: name.slice(0, 50), price, state })),
+    htmlPrveKartice: firstCard
+      ? firstCard.outerHTML.replace(/<svg[\s\S]*?<\/svg>/g, '<svg/>').replace(/user2Id=\d+/g, 'user2Id=0').slice(0, 4000)
+      : null,
+  });
+});
 
 window.addEventListener('message', async (e) => {
   if (e.source !== window || e.data?.source !== 'kp-pratim-istorija') return;

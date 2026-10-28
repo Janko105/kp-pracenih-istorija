@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "KP praćeni – istorija",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Pamti oglase koje pratiš na KupujemProdajem i pokazuje koji su nestali.",
   "permissions": ["storage", "unlimitedStorage"],
   "background": { "service_worker": "background.js" },

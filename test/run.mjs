@@ -21,6 +21,18 @@ function favPage(ids, total = ids.length) {
     .replace('aria-label="Pratim 6"', `aria-label="Pratim ${total}"`);
 }
 
+// Ista lista posle "redizajna" KP-a: drugi tagovi, druge (heširane) klase, relativni linkovi,
+// cena bez prepoznatljive klase. Ekstenzija ne sme da zavisi od toga.
+function redesigned(html) {
+  return html
+    .replace(/<section class="[^"]*itemHolder[^"]*"([^>]*)><article>/g, '<li class="AdCardV2-module__k3Jx__card"$1><div>')
+    .replace(/<\/article><\/section>/g, '</div></li>')
+    .replace(/class="[^"]*__name"/g, 'class="AdCardV2-module__k3Jx__title"')
+    .replace(/class="priceText [^"]*"/g, 'class="AdCardV2-module__k3Jx__amount"')
+    .replace(/class="AdItem[^"]*__price(Holder)?"/g, 'class="AdCardV2-module__k3Jx__meta"')
+    .replace(/href="https:\/\/www\.kupujemprodajem\.com\//g, 'href="/');
+}
+
 const pages = {}; // putanja+query -> HTML
 const userDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kp-ext-'));
 const ctx = await chromium.launchPersistentContext(userDir, {
@@ -51,8 +63,8 @@ const store = () => sw.evaluate(() => chrome.storage.local.get(null));
 const page = await ctx.newPage();
 page.on('console', (m) => m.type() === 'error' && !m.text().includes('ERR_FAILED') && console.log('  [page]', m.text()));
 
-async function visitFav(query, ids, total) {
-  pages['/moj-kp/pratim' + query] = favPage(ids, total);
+async function visitFav(query, ids, total, transform = (h) => h) {
+  pages['/moj-kp/pratim' + query] = transform(favPage(ids, total));
   const before = (await store()).lastScan?.at || 0;
   await page.goto(`${KP}/moj-kp/pratim${query}`);
   await waitFor(async () => ((await store()).lastScan?.at || 0) > before, 'skeniranje liste');
@@ -92,6 +104,19 @@ await step('prvo otvaranje: sačuvano svih 6 oglasa', async () => {
   const a = s.ads[A];
   assert.ok(a.name && a.price && a.url.includes(`/oglas/${A}`) && a.img, JSON.stringify(a));
   assert.ok(Object.values(s.ads).every((x) => x.removedAt === null));
+});
+
+await step('KP promeni izgled (drugi tagovi i klase) -> oglasi se i dalje prepoznaju', async () => {
+  const before = (await store()).ads;
+  const s = await visitFav('', ALL_IDS, ALL_IDS.length, redesigned);
+  assert.equal(s.lastScan.complete, true);
+  assert.equal(Object.keys(s.ads).length, 6);
+  for (const id of ALL_IDS) {
+    assert.equal(s.ads[id].removedAt, null);
+    assert.equal(s.ads[id].name, before[id].name, `naziv ${id}`);
+    assert.equal(s.ads[id].price, before[id].price, `cena ${id}`);
+    assert.ok(s.ads[id].url.startsWith(`${KP}/`) && s.ads[id].img, JSON.stringify(s.ads[id]));
+  }
 });
 
 await step('oglas nestao iz liste -> označen kao nestao', async () => {
@@ -195,6 +220,38 @@ await step('popup prikazuje nestale i resetuje broj na ikonici', async () => {
   await p.click('nav button[data-tab="removed"]');
   await p.locator('body').screenshot({ path: path.join(SHOTS, 'popup-tamna.png') });
   await waitFor(async () => (await sw.evaluate(() => chrome.action.getBadgeText({}))) === '', 'reset ikonice');
+});
+
+await step('dijagnostika: content script javlja šta vidi na stranici', async () => {
+  await visitFav('', rest);
+  const diag = await sw.evaluate(async () => {
+    for (const t of await chrome.tabs.query({})) {
+      try {
+        const r = await chrome.tabs.sendMessage(t.id, { type: 'diag' });
+        if (r) return r;
+      } catch {}
+    }
+  });
+  assert.equal(diag.brojUMeniju, rest.length);
+  assert.equal(diag.pronadjenoOglasa, rest.length);
+  assert.match(diag.htmlPrveKartice, /\/oglas\/\d+/);
+});
+
+await step('lista se ne prepoznaje -> popup upozorava umesto da ćuti', async () => {
+  const before = (await store()).lastIssue?.at || 0;
+  // Broj u meniju postoji, ali oglasa nema nigde na stranici.
+  pages['/moj-kp/pratim'] = favPage([], 4);
+  await page.goto(`${KP}/moj-kp/pratim`);
+  await waitFor(async () => ((await store()).lastIssue?.at || 0) > before, 'beleženje problema');
+  assert.equal((await store()).lastIssue.reason, 'no-items');
+  const p = await ctx.newPage();
+  await p.goto(`chrome-extension://${extId}/popup.html`);
+  await p.waitForSelector('#scan-info.warn');
+  assert.match(await p.textContent('#scan-info'), /ne prepoznaje oglase.*Dijagnostika/);
+  // Čim lista ponovo može da se pročita, upozorenje nestaje.
+  await visitFav('', rest);
+  await p.reload();
+  await p.waitForSelector('#scan-info:not(.warn)');
 });
 
 await ctx.close();

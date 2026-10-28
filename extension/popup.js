@@ -112,13 +112,26 @@ function render() {
     : 'Nema sačuvanih oglasa. Otvori stranicu „Pratim“ na KP-u.';
 }
 
+const ISSUE_TEXT = {
+  'no-items': (i) => `ekstenzija ne prepoznaje oglase na stranici Pratim (u meniju piše ${i.total}, pronađeno 0).`,
+  'no-total': () => 'na stranici Pratim se ne vidi broj praćenih oglasa u meniju.',
+  'too-many': (i) => `na stranici je pronađeno više oglasa (${i.count}) nego što piše u meniju (${i.total}).`,
+};
+
 async function load() {
-  const data = await chrome.storage.local.get(['ads', 'lastScan', 'seenAt']);
+  const data = await chrome.storage.local.get(['ads', 'lastScan', 'seenAt', 'lastIssue']);
   ads = data.ads || {};
   prevSeenAt = data.seenAt || 0;
   const s = data.lastScan;
+  const issue = data.lastIssue;
   const info = $('scan-info');
-  if (!s) {
+  if (issue && issue.at > (s?.at || 0) && ISSUE_TEXT[issue.reason]) {
+    // Novije od poslednjeg uspešnog pregleda – lista se trenutno ne može pročitati.
+    info.textContent = `Problem ${relative(issue.at)}: ${ISSUE_TEXT[issue.reason](issue)} ` +
+      `KP je možda promenio izgled sajta. Na stranici Pratim otvori meni ⋮ → Dijagnostika.` +
+      (s ? ` Prikazano stanje je od ${relative(s.at)}.` : '');
+    info.classList.add('warn');
+  } else if (!s) {
     info.textContent = 'Još nije pregledana lista. Otvori kupujemprodajem.com/moj-kp/pratim.';
   } else if (s.complete) {
     const n = s.total, d = n % 10, dd = n % 100;
@@ -162,6 +175,24 @@ document.addEventListener('click', (e) => !$('menu').contains(e.target) && setMe
 document.addEventListener('keydown', (e) => e.key === 'Escape' && setMenu(false));
 
 $('open-full').onclick = () => chrome.tabs.create({ url: chrome.runtime.getURL('popup.html#full') });
+
+// Pita content.js u aktivnom tabu šta vidi na stranici i kopira to u clipboard.
+$('diag').onclick = async () => {
+  const info = $('scan-info');
+  info.classList.add('warn');
+  const [tabInfo] = await chrome.tabs.query({ active: true, currentWindow: true });
+  let diag;
+  try {
+    diag = await chrome.tabs.sendMessage(tabInfo.id, { type: 'diag' });
+  } catch {
+    info.textContent = 'Dijagnostika radi samo na KP stranici Pratim. Otvori je (ili je osveži ako je već otvorena), pa klikni ikonicu ekstenzije → ⋮ → Dijagnostika.';
+    return;
+  }
+  const { lastScan, lastIssue } = await chrome.storage.local.get(['lastScan', 'lastIssue']);
+  await navigator.clipboard.writeText(JSON.stringify({ ...diag, lastScan, lastIssue }, null, 2));
+  info.classList.remove('warn');
+  info.textContent = `Dijagnostika kopirana u clipboard (pronađeno ${diag.pronadjenoOglasa}, u meniju ${diag.brojUMeniju}). Nalepi je gde treba.`;
+};
 
 // Popup se zatvori kad se otvori dijalog za fajl, pa uvoz radi u zasebnom tabu.
 $('import').onclick = () => {
